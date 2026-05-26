@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BASE=/root/services/cliproxyapi
+CFG="$BASE/config.yaml"
+CLIENT_KEY=$(python3 - <<'PY'
+import yaml
+with open('/root/services/cliproxyapi/config.yaml') as f:
+    cfg=yaml.safe_load(f)
+print((cfg.get('api-keys') or [''])[0])
+PY
+)
+MGMT_KEY=$(grep '^MANAGEMENT_KEY=' "$BASE/README-LOCAL.txt" | cut -d= -f2- || true)
+
+echo '== systemd =='
+systemctl --user status cliproxyapi.service --no-pager || true
+echo
+echo '== listening =='
+ss -ltnp | grep ':8317' || true
+echo
+echo '== root =='
+curl -sS --max-time 5 http://127.0.0.1:8317/ || true
+echo
+echo '== models =='
+curl -sS --max-time 10 -H "Authorization: Bearer $CLIENT_KEY" http://127.0.0.1:8317/v1/models || true
+echo
+echo '== auth files =='
+if [ -n "$MGMT_KEY" ]; then
+  curl -sS --max-time 10 -H "Authorization: Bearer $MGMT_KEY" http://127.0.0.1:8317/v0/management/auth-files || true
+else
+  echo 'management key not found'
+fi
+echo

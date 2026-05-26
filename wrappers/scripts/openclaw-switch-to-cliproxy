@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+import json
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+
+CONFIG = Path('/root/.openclaw/openclaw.json')
+BACKUP = Path('/root/.openclaw/openclaw.json.pre-cliproxy-backup')
+PROXY_CONFIG = Path('/root/services/cliproxyapi/config.yaml')
+README = Path('/root/services/cliproxyapi/README-LOCAL.txt')
+PROVIDER_ID = 'cliproxy'
+MODEL_ID = 'gpt-5.4'
+TARGET = f'{PROVIDER_ID}/{MODEL_ID}'
+BASE_URL = 'http://127.0.0.1:8317/v1'
+
+
+def fail(msg):
+    print(f'ERROR: {msg}', file=sys.stderr)
+    sys.exit(1)
+
+
+def sh(cmd):
+    return subprocess.run(cmd, text=True, capture_output=True)
+
+
+def require_service():
+    r = sh(['systemctl', '--user', 'is-active', 'cliproxyapi.service'])
+    if r.returncode != 0 or r.stdout.strip() != 'active':
+        fail('cliproxyapi.service is not active')
+
+
+def load_keys():
+    client_key = None
+    mgmt_key = None
+    for line in README.read_text().splitlines():
+        if line.startswith('CLIENT_API_KEY='):
+            client_key = line.split('=', 1)[1].strip()
+        if line.startswith('MANAGEMENT_KEY='):
+            mgmt_key = line.split('=', 1)[1].strip()
+    if not client_key or not mgmt_key:
+        fail('missing client or management key in README-LOCAL.txt')
+    return client_key, mgmt_key
+
+
+def http_json(url, bearer=None, timeout=10):
+    req = Request(url)
+    if bearer:
+        req.add_header('Authorization', f'Bearer {bearer}')
+    with urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode('utf-8'))
+
+
+def preflight():
+    require_service()
+    client_key, mgmt_key = load_keys()
+    try:
+        root = http_json('http://127.0.0.1:8317/', timeout=5)
+    except Exception as e:
+        fail(f'proxy root check failed: {e}')
+    if 'CLI Proxy API Server' not in json.dumps(root):
+        fail('proxy root endpoint did not look healthy')
+    try:
+        auth_files = http_json('http://127.0.0.1:8317/v0/management/auth-files', bearer=mgmt_key, timeout=10)
+    except Exception as e:
+        fail(f'proxy auth-files check failed: {e}')
+    files = auth_files.get('files') or []
+    if len(files) < 1:
+        fail('proxy auth pool is empty')
+    try:
+        models = http_json('http://127.0.0.1:8317/v1/models', bearer=client_key, timeout=10)
+    except Exception as e:
+        fail(f'proxy models check failed: {e}')
+    if not isinstance(models, dict) and not isinstance(models, list):
+        fail('unexpected /v1/models response')
+    return client_key, files
+
+
+def patch_config(client_key):
+    data = json.loads(CONFIG.read_text())
+    models = data.setdefault('models', {})
+    models['mode'] = 'merge'
+    providers = models.setdefault('providers', {})
+    providers[PROVIDER_ID] = {
+        'baseUrl': BASE_URL,
+        'apiKey': client_key,
+        'api': 'openai-responses',
+        'models': [
+            {
+                'id': MODEL_ID,
+                'name': 'CLIProxy Codex Pool',
+                'reasoning': True,
+                'input': ['text'],
+                'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0},
+                'contextWindow': 200000,
+                'maxTokens': 32768,
+            }
+        ],
+    }
+    data.setdefault('agents', {}).setdefault('defaults', {}).setdefault('model', {})['primary'] = TARGET
+    shutil.copy2(CONFIG, BACKUP)
+    CONFIG.write_text(json.dumps(data, indent=2) + '\n')
+
+
+def verify_live():
+    time.sleep(4)
+    data = json.loads(CONFIG.read_text())
+    live = data.get('agents', {}).get('defaults', {}).get('model', {}).get('primary')
+    if live != TARGET:
+        fail(f'config verify failed: expected {TARGET}, got {live}')
+    status = sh(['openclaw', 'status'])
+    if status.returncode != 0:
+        fail(f'openclaw status failed: {status.stderr.strip()}')
+    return status.stdout
+
+
+def main():
+    client_key, files = preflight()
+    patch_config(client_key)
+    r = sh(['openclaw', 'gateway', 'restart'])
+    if r.returncode != 0:
+        fail(f'gateway restart failed: {r.stderr.strip() or r.stdout.strip()}')
+    status = verify_live()
+    print('OK: switched OpenClaw to CLIProxy')
+    print(f'Auth files detected: {len(files)}')
+    print(status)
+
+
+if __name__ == '__main__':
+    main()

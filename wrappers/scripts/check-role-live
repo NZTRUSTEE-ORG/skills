@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <role-slug>" >&2
+  exit 1
+fi
+
+slug="$1"
+
+echo "== Agent record =="
+openclaw agents list --json | jq --arg slug "$slug" '.[] | select(.id==$slug)'
+
+echo
+
+echo "== Binding record =="
+openclaw agents bindings --json | jq --arg slug "$slug" '.[] | select(.agentId==$slug)'
+
+echo
+
+echo "== Session check =="
+python3 - <<'PY' "$slug"
+import json
+import sys
+from pathlib import Path
+slug = sys.argv[1]
+path = Path(f'/root/.openclaw/agents/{slug}/sessions/sessions.json')
+result = {
+    'sessionsPath': str(path),
+    'sessionsExists': path.exists(),
+    'sessionKeys': [],
+    'directSessionKey': None,
+    'directOriginAccountId': None,
+    'directWorkspaceDir': None,
+    'notes': []
+}
+if path.exists():
+    data = json.loads(path.read_text())
+    result['sessionKeys'] = sorted(list(data.keys()))
+    for key, value in data.items():
+        if key.startswith(f'agent:{slug}:slack:direct:'):
+            result['directSessionKey'] = key
+            result['directOriginAccountId'] = ((value.get('origin') or {}).get('accountId'))
+            result['directWorkspaceDir'] = (((value.get('systemPromptReport') or {}).get('workspaceDir')))
+            break
+    if not result['directSessionKey']:
+        result['notes'].append('No direct Slack session found yet.')
+else:
+    result['notes'].append('No sessions.json yet; send a fresh Slack DM if this role should be live on Slack.')
+print(json.dumps(result, indent=2))
+PY
+
+echo
+
+echo "== Role grounding =="
+python3 - <<'PY' "$slug"
+import json
+import sys
+from pathlib import Path
+slug = sys.argv[1]
+root = Path(f'/root/.openclaw/org-agents/{slug}')
+identity = root / 'IDENTITY.md'
+jd = root / 'JD.md'
+result = {
+    'roleRoot': str(root),
+    'identityExists': identity.exists(),
+    'jdExists': jd.exists(),
+    'identityRoleSlug': None,
+    'jdTitleLine': None,
+    'jdReportsToLine': None,
+}
+if identity.exists():
+    for line in identity.read_text().splitlines():
+        if 'Role Slug:' in line:
+            result['identityRoleSlug'] = line.strip()
+            break
+if jd.exists():
+    for line in jd.read_text().splitlines():
+        if 'Title:' in line and result['jdTitleLine'] is None:
+            result['jdTitleLine'] = line.strip()
+        if 'Reports To:' in line and result['jdReportsToLine'] is None:
+            result['jdReportsToLine'] = line.strip()
+print(json.dumps(result, indent=2))
+PY
+
+echo
+
+echo "== Live-ready rule =="
+echo "A Slack role is only truly live-ready when:"
+echo "- agent record exists and points to /root/.openclaw/org-agents/$slug"
+echo "- Slack binding exists for accountId=$slug"
+echo "- direct session key agent:$slug:slack:direct:* exists"
+echo "- direct session workspaceDir is /root/.openclaw/org-agents/$slug"
+echo "- Slack transport works (messages visibly arrive in Slack)"

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /root/.openclaw/workspace-agent-k
+exec python3 -m tools.agent_bring_to_life.cli "$@"

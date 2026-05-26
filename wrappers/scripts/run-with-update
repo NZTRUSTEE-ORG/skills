@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: run-with-update <command> [args...]" >&2
+  exit 2
+fi
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+python3 - "$ROOT" "$@" <<'PY'
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from github.operator.freshness import FreshnessError, update_repo_if_safe
+
+repo_root = sys.argv[1]
+command = sys.argv[2:]
+try:
+    state = update_repo_if_safe(repo_root)
+except FreshnessError as exc:
+    print(f"run-with-update: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+
+if state.get("updated"):
+    print(f"run-with-update: updated {state['branch']} to {state['remote_sha']}", file=sys.stderr)
+
+os.execvp(command[0], command)
+PY

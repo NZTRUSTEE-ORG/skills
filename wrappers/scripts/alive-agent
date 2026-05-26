@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKDIR="/root/.openclaw/workspace-agent-k"
+cd "$WORKDIR"
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing required command: $1" >&2
+    exit 1
+  }
+}
+
+need_cmd python3
+need_cmd openclaw
+need_cmd jq
+
+trim() {
+  local var="$1"
+  echo "$(printf '%s' "$var" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+}
+
+prompt_required() {
+  local label="$1"
+  local value
+  while true; do
+    read -r -p "$label" value
+    value="$(trim "$value")"
+    if [[ -n "$value" ]]; then
+      printf '%s' "$value"
+      return 0
+    fi
+    echo "Value required."
+  done
+}
+
+choose_from_list() {
+  local prompt="$1"
+  shift
+  local options=("$@")
+  local i choice max
+  max=${#options[@]}
+  if (( max == 0 )); then
+    echo "No options available for: $prompt" >&2
+    exit 1
+  fi
+  {
+    echo
+    echo "$prompt"
+    for i in "${!options[@]}"; do
+      printf '  %d) %s\n' "$((i + 1))" "${options[$i]}"
+    done
+  } >&2
+  while true; do
+    read -r -p "Choose a number [1-$max]: " choice >&2
+    choice="$(trim "$choice")"
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= max )); then
+      printf '%s' "$choice"
+      return 0
+    fi
+    echo "Invalid selection." >&2
+  done
+}
+
+choose_yes_no() {
+  local prompt="$1"
+  local default="$2"
+  local chosen_index
+  if [[ "$default" == "yes" ]]; then
+    chosen_index="$(choose_from_list "$prompt" 'yes (default)' 'no')"
+    case "$chosen_index" in
+      1) printf 'yes' ;;
+      2) printf 'no' ;;
+    esac
+  else
+    chosen_index="$(choose_from_list "$prompt" 'no (default)' 'yes')"
+    case "$chosen_index" in
+      1) printf 'no' ;;
+      2) printf 'yes' ;;
+    esac
+  fi
+}
+
+show_phase() {
+  local slug="$1"
+  echo
+  echo "== Phase =="
+  python3 -m tools.agent_onboarding_engine.cli status --agent "$slug" | jq '.state.phase'
+}
+
+show_agent_record() {
+  local slug="$1"
+  echo
+  echo "== Agent record =="
+  openclaw agents list --json | jq --arg slug "$slug" '.[] | select(.id==$slug)'
+}
+
+show_binding_record() {
+  local slug="$1"
+  echo
+  echo "== Binding record =="
+  openclaw agents bindings --json | jq --arg slug "$slug" '.[] | select(.agentId==$slug)'
+}
+
+show_slack_state() {
+  local slug="$1"
+  echo
+  echo "== Slack token state =="
+  python3 -m tools.agent_onboarding_engine.cli status --agent "$slug" | jq '.state.slack'
+}
+
+slack_session_json() {
+  local slug="$1"
+  python3 - <<'PY' "$slug"
+import json
+import sys
+from pathlib import Path
+slug = sys.argv[1]
+path = Path(f'/root/.openclaw/agents/{slug}/sessions/sessions.json')
+result = {
+    'slackSessionsPath': str(path),
+    'slackSessionsExists': path.exists(),
+    'slackSessionKeys': [],
+    'slackDirectSessionKey': None,
+    'slackDirectWorkspaceObserved': None,
+    'notes': []
+}
+if path.exists():
+    data = json.loads(path.read_text())
+    result['slackSessionKeys'] = sorted(list(data.keys()))
+    for key, value in data.items():
+        if key.startswith(f'agent:{slug}:slack:direct:'):
+            result['slackDirectSessionKey'] = key
+            result['slackDirectWorkspaceObserved'] = (((value or {}).get('systemPromptReport') or {}).get('workspaceDir'))
+            break
+    if not result['slackDirectSessionKey']:
+        result['notes'].append('No direct Slack session key yet.')
+else:
+    result['notes'].append('No sessions.json yet; send a fresh Slack DM after pairing approval.')
+print(json.dumps(result, indent=2))
+PY
+}
+
+show_slack_session_check() {
+  local slug="$1"
+  echo
+  echo "== Slack session check =="
+  slack_session_json "$slug"
+}
+
+wait_for_slack_direct_session() {
+  local slug="$1"
+  local expected="/root/.openclaw/org-agents/$slug"
+  local attempts=12
+  local sleep_seconds=5
+  local i json key workspace
+  echo
+  echo "Waiting for direct Slack session materialization..."
+  echo "Expected direct workspace: $expected"
+  for ((i=1; i<=attempts; i++)); do
+    json="$(slack_session_json "$slug")"
+    key="$(printf '%s' "$json" | jq -r '.slackDirectSessionKey // empty')"
+    workspace="$(printf '%s' "$json" | jq -r '.slackDirectWorkspaceObserved // empty')"
+    if [[ -n "$key" && "$workspace" == "$expected" ]]; then
+      echo "Direct Slack session materialized on attempt $i/$attempts."
+      printf '%s\n' "$json"
+      return 0
+    fi
+    echo "Attempt $i/$attempts: direct session not ready yet."
+    sleep "$sleep_seconds"
+  done
+  echo "Direct Slack session did not materialize in time."
+  printf '%s\n' "$json"
+  return 1
+}
+
+show_expected_identity() {
+  local slug="$1"
+  echo
+  echo "== Expected identity =="
+  python3 -m tools.agent_onboarding_engine.cli status --agent "$slug" | jq '{
+    agent: .state.agent,
+    selectedOptions: (.state.selectedOptions // {}),
+    roleView: {
+      title: (.state.roleView.title // null),
+      reportsTo: (.state.roleView.reportsTo // null),
+      registryStatus: (.state.roleView.registryStatus // null),
+      invocationMode: (.state.roleView.invocationMode // null)
+    },
+    activationPlan: {
+      runtimeWorkspace: (.state.facts.activationPlan.runtimeWorkspace // null),
+      roleDir: (.state.facts.activationPlan.roleDir // null),
+      runtimeAgentDir: (.state.facts.activationPlan.runtimeAgentDir // null)
+    },
+    references: (.state.bringToLife.hydrate.result.references // [])
+  }'
+}
+
+run_step() {
+  echo
+  echo "> $*"
+  "$@"
+}
+
+echo "Alive Agent Wizard"
+echo "------------------"
+echo "Ctrl+C at any time before 'Proceed' exits without making changes."
+
+mapfile -t role_rows < <(
+  python3 -m tools.agent_onboarding_engine.cli eligible-roles \
+    | jq -r '
+        .items[]
+        | select(.phase != "slack_bound")
+        | [ .slug, .title, .manager, .phase ]
+        | @tsv
+      '
+)
+
+if (( ${#role_rows[@]} == 0 )); then
+  echo "No unfinished roles available for onboarding."
+  exit 0
+fi
+
+role_options=()
+role_slugs=()
+role_titles=()
+role_phases=()
+for row in "${role_rows[@]}"; do
+  IFS=$'\t' read -r row_slug row_title row_manager row_phase <<< "$row"
+  role_slugs+=("$row_slug")
+  role_titles+=("$row_title")
+  role_phases+=("$row_phase")
+  role_options+=("$row_slug — $row_title [manager: $row_manager, phase: $row_phase]")
+done
+
+selected_role_index_raw="$(choose_from_list 'Select role' "${role_options[@]}")"
+selected_role_index=$((selected_role_index_raw - 1))
+slug="${role_slugs[$selected_role_index]}"
+selected_title="${role_titles[$selected_role_index]}"
+selected_phase="${role_phases[$selected_role_index]}"
+
+branch_options=('proxy branch (CLIProxy pattern)' 'direct pro branch (org direct OAuth)')
+branch_index="$(choose_from_list 'Select branch policy' "${branch_options[@]}")"
+case "$branch_index" in
+  1)
+    branch_type='proxy'
+    branch_policy='sanctioned-proxy-branch'
+    model='cliproxy/gpt-5.4'
+    ;;
+  2)
+    branch_type='direct-pro'
+    branch_policy='sanctioned-direct-pro-branch'
+    model='openai-codex/gpt-5.4'
+    ;;
+esac
+
+mode_options=('persistent' 'on-demand')
+mode_index="$(choose_from_list 'Select mode' "${mode_options[@]}")"
+mode="${mode_options[$((mode_index - 1))]}"
+
+pool_options=('exec-pool' 'default-pool')
+pool_index="$(choose_from_list 'Select LLM pool' "${pool_options[@]}")"
+llm_pool="${pool_options[$((pool_index - 1))]}"
+
+slack="$(choose_yes_no 'Enable Slack?' 'no')"
+telegram="$(choose_yes_no 'Enable Telegram?' 'no')"
+
+echo
+echo "== Selected role =="
+echo "menu_choice: $selected_role_index_raw"
+echo "slug: $slug"
+echo "title: $selected_title"
+echo "current_phase: $selected_phase"
+echo "resolved_role_root: /root/.openclaw/org-agents/$slug"
+echo "resolved_runtime_agent_dir: /root/.openclaw/agents/$slug/agent"
+
+echo
+echo "== Plan =="
+echo "agent: $slug"
+echo "branch_type: $branch_type"
+echo "branch_policy: $branch_policy"
+echo "model: $model"
+echo "mode: $mode"
+echo "llm_pool: $llm_pool"
+echo "slack: $slack"
+echo "telegram: $telegram"
+if [[ "$branch_type" == "proxy" ]]; then
+  echo "branch_note: proxy roles should not depend on CLIProxy pro auth."
+else
+  echo "branch_note: direct org branch is expected to align with agent@nztrustee.com policy."
+fi
+
+if [[ "$selected_phase" != "not_started" ]]; then
+  echo
+  echo "WARNING: $slug is not clean. Current phase: $selected_phase"
+  echo "Reruns can reuse or compound partial state."
+  dirty_confirm="$(choose_yes_no 'Continue with this non-clean role?' 'no')"
+  if [[ "$dirty_confirm" != "yes" ]]; then
+    echo "Cancelled before changes."
+    exit 0
+  fi
+fi
+
+confirm="$(choose_yes_no 'Proceed?' 'yes')"
+if [[ "$confirm" != "yes" ]]; then
+  echo "Cancelled before changes."
+  exit 0
+fi
+
+run_step python3 -m tools.agent_onboarding_engine.cli start --agent "$slug"
+run_step python3 -m tools.agent_onboarding_engine.cli prepare --agent "$slug"
+run_step python3 -m tools.agent_onboarding_engine.cli select-options \
+  --agent "$slug" \
+  --model "$model" \
+  --llm-pool "$llm_pool" \
+  --mode "$mode" \
+  --slack "$slack" \
+  --telegram "$telegram" \
+  --branch-type "$branch_type" \
+  --branch-policy "$branch_policy"
+run_step python3 -m tools.agent_onboarding_engine.cli activate --agent "$slug" --model "$model"
+show_phase "$slug"
+show_agent_record "$slug"
+show_expected_identity "$slug"
+
+run_step python3 -m tools.agent_onboarding_engine.cli post-activation-enrich --agent "$slug"
+show_phase "$slug"
+show_expected_identity "$slug"
+
+upper_slug="$(printf '%s' "$slug" | tr '[:lower:]-' '[:upper:]_')"
+
+if [[ "$slack" == "yes" ]]; then
+  echo
+  echo "Slack branch enabled for $slug."
+  read -r -s -p "$upper_slug Slack app token (xapp-...): " slack_app_token
+  echo
+  read -r -s -p "$upper_slug Slack bot token (xoxb-...): " slack_bot_token
+  echo
+
+  export "${upper_slug}_SLACK_APP_TOKEN=$slack_app_token"
+  export "${upper_slug}_SLACK_BOT_TOKEN=$slack_bot_token"
+  unset slack_app_token slack_bot_token
+
+  run_step python3 -m tools.agent_onboarding_engine.cli provide-slack-tokens --agent "$slug"
+  show_slack_state "$slug"
+
+  run_step python3 -m tools.agent_onboarding_engine.cli bind-slack --agent "$slug"
+  show_phase "$slug"
+  show_binding_record "$slug"
+  show_slack_session_check "$slug"
+  echo
+  echo "IMPORTANT: Slack bind is not the same as live-ready."
+  echo "A fresh Slack DM must materialize agent:$slug:slack:direct:* with the correct workspace."
+
+  approve_now="$(choose_yes_no 'Approve a Slack pairing code now?' 'no')"
+  if [[ "$approve_now" == "yes" ]]; then
+    read -r -p "$upper_slug Slack pairing code: " pairing_code
+    pairing_code="$(trim "$pairing_code")"
+    if [[ -n "$pairing_code" ]]; then
+      run_step openclaw pairing approve slack "$pairing_code"
+      if ! wait_for_slack_direct_session "$slug"; then
+        echo
+        echo "SLACK LIVE-SEAT NOT READY."
+        echo "The role is bound and paired, but no correct direct role-local session materialized."
+        echo "Suggested recovery: send a fresh Slack DM to the role; if still missing, let the script reboot the gateway and test again after restart."
+      fi
+    fi
+    unset pairing_code
+  else
+    echo
+    echo "If Slack later shows a pairing code, approve it with:"
+    echo "read -p \"$upper_slug Slack pairing code: \" ${upper_slug}_PAIRING_CODE"
+    echo "openclaw pairing approve slack \"\$${upper_slug}_PAIRING_CODE\""
+    echo "unset ${upper_slug}_PAIRING_CODE"
+    echo "After approving pairing, verify a direct role-local session appears for $slug before trusting the role as live-ready."
+  fi
+fi
+
+echo
+echo "== Final slim checks =="
+show_phase "$slug"
+show_agent_record "$slug"
+show_expected_identity "$slug"
+if [[ "$slack" == "yes" ]]; then
+  show_binding_record "$slug"
+  show_slack_state "$slug"
+  show_slack_session_check "$slug"
+fi
+
+echo
+echo "Nearly there! Rebooting....."
+run_step openclaw gateway restart
+
+echo
+echo "Done."

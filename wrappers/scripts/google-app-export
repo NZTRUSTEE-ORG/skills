@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /root/.openclaw/workspace-agent-k
+exec /root/.openclaw/workspace-agent-k/.venv/bin/python -m tools.google_app_export.cli "$@"

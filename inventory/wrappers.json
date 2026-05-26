@@ -1,0 +1,210 @@
+[
+  {
+    "root": "/root/.openclaw/org-agents/cto/My Documents/github/scripts",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/scripts/github-bootstrap"
+  },
+  {
+    "root": "/root/.openclaw/org-agents/cto/My Documents/github/scripts",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/scripts/github-operator"
+  },
+  {
+    "root": "/root/.openclaw/org-agents/cto/My Documents/github/scripts",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/scripts/github-ops"
+  },
+  {
+    "root": "/root/.openclaw/org-agents/cto/My Documents/github/scripts",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/scripts/run-with-update"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/README-agents.md"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/add-program-skill.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-bolt-service"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-controller"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-http-service"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-http-stub"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-runtime"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-slack-service"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-awakening-ui"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/agent-onboarding"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/alive-agent"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/alive-agent.README.md"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/auth-branch-audit"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/bring-agent-to-life"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/check-role-live"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/cliproxy-service.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/cliproxy-status"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/dispatch-with-startup-gate.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/gmail"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-app-export"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-apps-script"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-docs"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-draw"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-drive"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-forms"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-jamboard"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-sheets"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-sites"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-slides"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-workspace"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google-workspace-upload-resilient"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/google_drive_setup.md"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/install-startup-watchdog-cron.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/new-agent.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/new-role-skill.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/openclaw-rollback-from-cliproxy"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/openclaw-switch-to-cliproxy"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/request-backup"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/skill-ship"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/slack-drive-upload"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/slack-onboard-agent"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/slack-onboarding-preflight"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/startup-watchdog.sh"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/systematic-skill-vet"
+  },
+  {
+    "root": "/root/.openclaw/workspace-agent-k/scripts",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/topic-state"
+  },
+  {
+    "root": "extra",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/github-bootstrap-wrapper-spec.md"
+  },
+  {
+    "root": "extra",
+    "path": "/root/.openclaw/org-agents/cto/My Documents/github/github-ops-wrapper-spec.md"
+  },
+  {
+    "root": "extra",
+    "path": "/root/.openclaw/workspace-agent-k/scripts/alive-agent.README.md"
+  }
+]

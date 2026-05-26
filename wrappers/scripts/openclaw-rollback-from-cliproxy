@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cp /root/.openclaw/openclaw.json.pre-cliproxy-backup /root/.openclaw/openclaw.json
+openclaw gateway restart

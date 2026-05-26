@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /root/.openclaw/workspace-agent-k
+exec .venv/bin/python -m tools.topic_state.cli "$@"

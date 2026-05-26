@@ -1,38 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-if [ "$#" -lt 1 ]; then
-  echo "usage: run-with-update <command> [args...]" >&2
-  exit 2
-fi
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
-
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  exec "$@"
-fi
-
-git fetch origin
-status="$(git status --porcelain)"
-branch="$(git rev-parse --abbrev-ref HEAD)"
-upstream="origin/$branch"
-local_sha="$(git rev-parse HEAD)"
-remote_sha="$(git rev-parse "$upstream")"
-base_sha="$(git merge-base HEAD "$upstream")"
-
-if [ -n "$status" ]; then
-  echo "run-with-update: local checkout has uncommitted changes; refusing auto-update" >&2
-  exit 1
-fi
-
-if [ "$local_sha" != "$remote_sha" ] && [ "$base_sha" != "$local_sha" ] && [ "$base_sha" != "$remote_sha" ]; then
-  echo "run-with-update: local checkout has diverged from remote; refusing auto-update" >&2
-  exit 1
-fi
-
-if [ "$local_sha" = "$base_sha" ] && [ "$local_sha" != "$remote_sha" ]; then
-  git merge --ff-only "$upstream" >/dev/null
-fi
-
 exec "$@"

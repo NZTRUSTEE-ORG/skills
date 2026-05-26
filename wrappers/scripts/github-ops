@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+GitHub ops compatibility wrapper
+
+Primary path:
+  github-operator <group> <intent> ...
+
+Legacy compatibility examples:
+  github-ops repo get <repo> [owner]              -> github-operator repo inspect <repo> [owner]
+  github-ops branch list <repo> [owner]          -> github-operator branch list <repo> [owner]
+  github-ops branch create <repo> <branch> ...   -> github-operator branch create <repo> <branch> ...
+  github-ops file get <repo> <path> ...          -> github-operator file get <repo> <path> ...
+  github-ops file put <repo> <path> <file> ...   -> github-operator file commit <repo> <path> <file> ...
+  github-ops pr list <repo> [owner]              -> github-operator pr list <repo> [owner]
+  github-ops pr create <repo> ...                -> github-operator pr create <repo> ...
+EOF
+}
+
+echo_intent() {
+  if [[ "${GITHUB_OPERATOR_ECHO:-}" == "1" ]]; then
+    printf '%s\n' "$1"
+    exit 0
+  fi
+}
+
+cmd="${1:-}"
+if [[ -z "$cmd" ]]; then
+  usage
+  exit 1
+fi
+shift || true
+
+case "$cmd" in
+  help|-h|--help)
+    usage
+    ;;
+  repo)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      get)
+        echo_intent "repo.inspect"
+        exec "$ROOT/scripts/github-operator" repo inspect "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-ops repo subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  branch)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      list)
+        echo_intent "branch.list"
+        exec "$ROOT/scripts/github-operator" branch list "$@"
+        ;;
+      create)
+        echo_intent "branch.create"
+        exec "$ROOT/scripts/github-operator" branch create "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-ops branch subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  file)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      get)
+        echo_intent "file.get"
+        exec "$ROOT/scripts/github-operator" file get "$@"
+        ;;
+      put)
+        echo_intent "file.commit"
+        exec "$ROOT/scripts/github-operator" file commit "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-ops file subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  pr)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      list)
+        echo_intent "pr.list"
+        exec "$ROOT/scripts/github-operator" pr list "$@"
+        ;;
+      create)
+        echo_intent "pr.create"
+        exec "$ROOT/scripts/github-operator" pr create "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-ops pr subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "Error: unsupported legacy github-ops mapping: ${cmd}" >&2
+    exit 1
+    ;;
+esac

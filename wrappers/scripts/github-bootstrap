@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+GitHub bootstrap compatibility wrapper
+
+Primary path:
+  github-operator <group> <intent> ...
+
+Legacy compatibility examples:
+  github-bootstrap whoami                           -> github-operator auth inspect
+  github-bootstrap org get [org]                   -> github-operator org inspect [org]
+  github-bootstrap repo list [owner]               -> github-operator repo list [owner]
+  github-bootstrap repo create <name> [options]    -> github-operator repo create <name> [options]
+
+The bootstrap wrapper remains for transitional admin/bootstrap work only.
+EOF
+}
+
+echo_intent() {
+  if [[ "${GITHUB_OPERATOR_ECHO:-}" == "1" ]]; then
+    printf '%s\n' "$1"
+    exit 0
+  fi
+}
+
+cmd="${1:-}"
+if [[ -z "$cmd" ]]; then
+  usage
+  exit 1
+fi
+shift || true
+
+case "$cmd" in
+  help|-h|--help)
+    usage
+    ;;
+  whoami)
+    echo_intent "auth.inspect"
+    exec "$ROOT/scripts/github-operator" auth inspect "$@"
+    ;;
+  api)
+    echo_intent "auth.api_get"
+    exec "$ROOT/scripts/github-operator" auth api-get "$@"
+    ;;
+  api-post)
+    echo_intent "auth.api_post"
+    exec "$ROOT/scripts/github-operator" auth api-post "$@"
+    ;;
+  org)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      get)
+        echo_intent "org.inspect"
+        exec "$ROOT/scripts/github-operator" org inspect "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-bootstrap org subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  repo)
+    sub="${1:-}"
+    shift || true
+    case "$sub" in
+      list)
+        echo_intent "repo.list"
+        exec "$ROOT/scripts/github-operator" repo list "$@"
+        ;;
+      create)
+        echo_intent "repo.create"
+        exec "$ROOT/scripts/github-operator" repo create "$@"
+        ;;
+      *)
+        echo "Error: unsupported github-bootstrap repo subcommand: ${sub}" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "Error: unsupported legacy github-bootstrap mapping: ${cmd}" >&2
+    exit 1
+    ;;
+esac
